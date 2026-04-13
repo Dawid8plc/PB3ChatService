@@ -25,6 +25,21 @@ function auth({ socket, userData, parts, key }) {
     send(socket, ["Authenticated", connectionUID, JSON.stringify([])], key);
 }
 
+function update_cache_profile({socket, userData, parts, key})
+{
+    const userId = parts[1];
+    const playerName = parts[2];
+    const skin = parts[3];
+    let user = userManager.getUser(socket);
+
+    if(user)
+    {
+        user.playerName = playerName;
+        user.skin = skin;
+    }
+}
+
 module.exports = {
-    auth
+    auth,
+    update_cache_profile
 };

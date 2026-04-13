@@ -101,10 +101,12 @@ function setMatchDetails(userData, parts) {
 
     touch(matchObj);
 
-    if (!matchObj.initiator)
+    if (matchObj.initiator == null)
     {
         matchObj.initiator = userData.socket;
         matchObj.connected = true;
+        userData.match_uid_initiator = matchObj.match_uid;
+        console.log("Marking match as connected", matchObj.match_uid);
     }
 
     const newInfo = {};

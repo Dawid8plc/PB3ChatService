@@ -3,6 +3,22 @@ const pendingMatches = new Map();
 
 const pendingJoinRequests = new Map();
 
+const MATCH_TTL = 5 * 60 * 1000;
+
+function cleanup() {
+    const now = Date.now();
+
+    for (const [id, match] of matchesById.entries()) {
+        const isOld = now - match.lastActivity > MATCH_TTL;
+
+        if (isOld && !match.connected) {
+            console.log("Deleting inactive match:", id);
+            matchesById.delete(id);
+            pendingMatches.delete(match.user_uid);
+        }
+    }
+}
+
 function createMatch(userData, data) {
     const matchUID = Math.floor(Math.random() * 1e9);
 
@@ -20,10 +36,13 @@ function createMatch(userData, data) {
 
     const matchObj = {
         initiator: userData.socket,
+        user_uid: userData.userId,
+        connected: true,
         match_uid: matchUID,
         ...data,
         matchDetails: {},
-        has_password: hostPassword ? '1' : ''
+        has_password: hostPassword ? '1' : '',
+        lastActivity: Date.now()
     };
 
     userData.match_uid_initiator = matchUID;
@@ -34,10 +53,21 @@ function createMatch(userData, data) {
     return matchObj;
 }
 
-function deleteMatch(userData) {
+function touch(match) {
+    if (match) match.lastActivity = Date.now();
+}
+
+function deleteMatch(userData, disconnected) {
     if (userData.match_uid_initiator !== -1) {
-        pendingMatches.delete(userData.userId);
-        matchesById.delete(userData.match_uid_initiator);
+        if(disconnected){
+            let match = matchesById.get(userData.match_uid_initiator);
+            console.log("Marking match as disconnected:", match.match_uid);
+            match.connected = false;
+            match.initiator = null;
+        }else{
+            pendingMatches.delete(userData.userId);
+            matchesById.delete(userData.match_uid_initiator);
+        }
         userData.match_uid_initiator = -1;
     }
 }
@@ -68,6 +98,14 @@ function registerHost(userData) {
 function setMatchDetails(userData, parts) {
     const matchObj = pendingMatches.get(userData.userId);
     if (!matchObj) return null;
+
+    touch(matchObj);
+
+    if (!matchObj.initiator)
+    {
+        matchObj.initiator = userData.socket;
+        matchObj.connected = true;
+    }
 
     const newInfo = {};
 
@@ -153,6 +191,11 @@ function requestJoin(userData, socket, match_uid, match_password) {
         return { error: "Match not found" };
     }
 
+    if(!match.initiator)
+    {
+        return { error: "Host not found" };
+    }
+
     let info = match.information_for_host;
 
     if (typeof info === "string") {
@@ -229,5 +272,7 @@ module.exports = {
     listMatches,
     requestJoin,
     createJoinRequest,
-    handleJoinResponse
+    handleJoinResponse,
+    touch,
+    cleanup
 };

@@ -12,9 +12,11 @@ module.exports = function handleSocket(socket) {
         const user = userManager.removeUser(socket);
         if (!user) return;
 
-        matchManager.deleteMatch(user);
+        matchManager.deleteMatch(user, true);
         lobbyManager.leaveLobby(user.lobby, socket);
         channelManager.removeSocketFromAll(socket);
+
+        console.log(user.playerName, " disconnected");
     });
 
     socket.on("m", (msg) => {
